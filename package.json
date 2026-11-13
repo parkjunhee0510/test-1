@@ -1,0 +1,15 @@
+{
+  "name": "orbit-hop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "궤도 뛰기: 탭 한 번으로 행성 궤도를 건너뛰는 브라우저 아케이드 게임",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test \"test/*.test.js\"",
+    "test:e2e": "node e2e/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

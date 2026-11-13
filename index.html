@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>궤도 뛰기</title>
+<meta name="description" content="탭 한 번으로 행성 궤도를 건너뛰는 아케이드 게임">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&family=Orbit&display=swap">
+<style>
+/* 레이아웃: 화면 전체가 놀이판이다. 글자는 왼쪽 여백선에 붙여 인쇄 포스터처럼 쌓고, 조작부는 오른쪽 위 한 곳에만 둔다. */
+:root {
+  /* 색: 종이 한 장에 남색 먹과 별색 잉크 네 가지를 찍는 공판 인쇄 */
+  --paper: #edf1ec;
+  --paper-deep: #dde5df;
+  --ink: #1c2756;
+  --ink-soft: #55608d;
+  --hot: #ee3f86;
+  --spot-1: #ee3f86;
+  --spot-2: #f0b400;
+  --spot-3: #0f8f8a;
+  --spot-4: #6a55d6;
+  --card: rgba(237, 241, 236, 0.92);
+  /* 글자: 제목·점수 / 본문 / 계기판 수치 */
+  --font-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  --font-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --font-data: "Orbit", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #141a3e;
+    --paper-deep: #0c1130;
+    --ink: #eceaff;
+    --ink-soft: #a2a9d8;
+    --hot: #ff5c9e;
+    --spot-1: #ff5c9e;
+    --spot-2: #ffd03b;
+    --spot-3: #33c9bb;
+    --spot-4: #a394ff;
+    --card: rgba(20, 26, 62, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #141a3e;
+  --paper-deep: #0c1130;
+  --ink: #eceaff;
+  --ink-soft: #a2a9d8;
+  --hot: #ff5c9e;
+  --spot-1: #ff5c9e;
+  --spot-2: #ffd03b;
+  --spot-3: #33c9bb;
+  --spot-4: #a394ff;
+  --card: rgba(20, 26, 62, 0.92);
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+
+html {
+  box-sizing: border-box;
+  height: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+.stage {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.view {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 위쪽 계기: 점수와 수치는 왼쪽, 소리 버튼은 오른쪽 */
+.hud {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 14px 30px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  /* 위로 흘러가는 행성이 점수 글자를 가리지 않게 종이 색으로 덮는다 */
+  background: linear-gradient(var(--paper) 62%, transparent);
+  pointer-events: none;
+}
+.tally {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+}
+.tally-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.score {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 13vw, 4.25rem);
+  line-height: 0.86;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 3px 3px 0 var(--hot);
+}
+.mult {
+  padding: 5px 9px 4px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1;
+  transform: rotate(-6deg);
+}
+.telemetry {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.telemetry b {
+  color: var(--ink);
+  font-weight: 400;
+}
+.telemetry .low b { color: var(--hot); }
+
+.mute {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 3px 3px 0 var(--hot);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.mute:focus-visible {
+  outline: 3px solid var(--hot);
+  outline-offset: 3px;
+}
+.mute:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--hot);
+}
+.mute .slash { display: none; }
+.mute[aria-pressed="true"] .wave { display: none; }
+.mute[aria-pressed="true"] .slash { display: block; }
+
+/* 시작·결과 안내판: 화면에서 유일하게 테두리와 그림자를 가진 덩어리 */
+.panel {
+  position: absolute;
+  top: 112px;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  max-width: 21rem;
+  padding: 18px 18px 16px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  box-shadow: 6px 6px 0 var(--hot);
+  pointer-events: none;
+  animation: panel-in 0.26s ease-out both;
+}
+.panel h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 13vw, 3.5rem);
+  font-weight: 400;
+  line-height: 1;
+  text-wrap: balance;
+  text-shadow: 3px 3px 0 var(--hot);
+}
+.panel p { margin: 0; }
+.panel .more {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+.panel .stats {
+  font-family: var(--font-data);
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+}
+.panel .cta {
+  padding: 7px 12px 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-data);
+  font-size: 0.875rem;
+  letter-spacing: 0.03em;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translate(-6px, 6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hint {
+  position: absolute;
+  bottom: 18px;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  width: fit-content;
+  max-width: 21rem;
+  margin: 0;
+  padding: 7px 12px 6px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  font-family: var(--font-data);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage" data-mode="ready" aria-label="궤도 뛰기 놀이판">
+  <canvas class="view" id="view"></canvas>
+
+  <div class="hud">
+    <div class="tally">
+      <div class="tally-top">
+        <output class="score" id="score" aria-label="점수">0</output>
+        <span class="mult" id="mult" hidden>×2</span>
+      </div>
+      <p class="telemetry">
+        <span>최고 <b id="best">0</b></span>
+        <span id="alt-wrap">고도 <b id="alt">–</b></span>
+      </p>
+    </div>
+    <button class="mute" id="mute" type="button" aria-pressed="false" aria-label="음소거">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>
+        <path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path class="slash" d="M15.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <section class="panel" id="panel" aria-live="polite">
+    <h1 id="panel-title">궤도 뛰기</h1>
+    <p id="panel-line">탭하면 궤도를 떠나 곧게 날아갑니다. 다음 행성의 점선 고리에 걸리면 성공입니다.</p>
+    <p class="more" id="panel-more">오래 돌면 궤도가 낮아져 추락합니다. 쉬지 않고 연달아 뛰면 점수가 배로 붙습니다.</p>
+    <p class="stats" id="panel-stats" hidden></p>
+    <p class="cta" id="panel-cta">화면을 탭하거나 Space 키로 출발</p>
+  </section>
+
+  <p class="hint" id="hint" hidden>조준선이 다음 고리를 지날 때 탭</p>
+</main>
+<noscript>자바스크립트를 켜야 게임이 실행됩니다.</noscript>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
